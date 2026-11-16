@@ -20,7 +20,7 @@ the same switches as Exhumed's `uw1port.exe`:
 | --- | --- |
 | `--data DIR`, `--home DIR` | the game's files; where saves and settings live |
 | `--autoload` | skip the title and menu, go straight into the newest save |
-| `--input-script FILE` | timed key presses and console cheats, by milliseconds of play |
+| `--input-script FILE` | key presses and test cheats at set times, in milliseconds since the start |
 | `--hidden`, `--no-audio`, `--no-recording` | no window, no sound, no input recording |
 | `--screenshot FILE`, `--screenshot-after MS` | save the screen once |
 | `--exit-after MS`, `--exit-on-halt` | stop at a time, or when the game halts |
@@ -40,7 +40,9 @@ each one it ran (`cheat: goto 3 32 11 (not as DOS)`), which is how the result is
    script does `cheat goto` there and waits 5 seconds of play. Then Ctrl+S saves in slot I, so the game writes
    every level it visited back to `LEV.ARK`.
    - `--sweep` adds one stop in every 16x16 area of each level; `--look` turns a full circle at every stop.
-   - Level 9 (the Ethereal Void) comes last, after the save: the game takes no save there.
+   - Level 9 (the Ethereal Void) comes last, after the save. In our first runs the save came after level 9 and
+     neither port wrote one; why was not looked into. So level 9 is loaded and watched for crashes, but it is
+     not in the save and is not compared.
    - Ours starts with `--autoload` instead of the editor's two Enter presses through the title menu, since our
      menus may be drawn differently.
 3. **The run.** The exe is started hidden; its output is captured to `output.txt`. A run that doesn't end within
@@ -48,7 +50,7 @@ each one it ran (`cheat: goto 3 32 11 (not as DOS)`), which is how the result is
 4. **The verdict** (the editor's `ExhumedCheck.Analyze`). A problem is: a non-zero exit (crash, halt, fatal
    error, start-up error, each named), "host fault", "the game stops here", "can no longer run", a refused
    cheat, a level never reached, no save written, or a level in the save that fails the editor's object-list
-   checks (`LevelBlock.Check`, the game's own `Obj_ListOkay`, and `LevelFixes` list errors). Notes, not
+   checks (`LevelBlock.Check`, the editor's version of the game's `Obj_ListOkay`, and `LevelFixes` list errors). Notes, not
    problems: the game reading through a null pointer (Exhumed reads what DOS would and carries on) and which
    levels were loaded. The editor excuses a crash on arriving at level 9, which old Exhumed builds always did;
    uwcheck counts it, because ours must not crash there.
@@ -61,11 +63,13 @@ Ours is run twice and Exhumed's `uw1port.exe` twice, on the same script, and the
 compared byte by byte: each level's 64x64 tiles, 256 mobile objects (27 bytes each: creatures and things that
 move), 768 static objects (8 bytes), the free lists, and `PLAYER.DAT`.
 
-The script's times are real milliseconds and a frame lands a little earlier or later each run, so **no port
+The script's times are milliseconds since the start and a frame lands a little earlier or later each run, so **no port
 saves the same bytes twice**: between two runs of the same exe, 60-240 creature bytes a level differ
 (positions, headings, AI state). So a byte only counts as a difference when both our runs agree with each
 other, both reference runs agree with each other, and the two sides disagree. Everything else is listed as
 noise. A difference names the tile or object and the byte within its record, with ours/reference in hex.
+The exit code is 0 only when all four runs passed and no such byte was found. In practice some noise gets through
+(see the results below), so the list is for reading, not a pass/fail gate.
 
 Read it as a pointer for where to look, not as proof: a one-bit field that is noisy on both sides still
 passes the filter about one time in eight. The proof that a routine matches the original is the emulator
@@ -85,6 +89,10 @@ uwcheck.cmd check --compare                ours x2 and the reference x2, then th
 uwcheck.cmd spot 3 32 11 --secs 10         stand on level 3 (32, 11) for 10 s, take a screenshot
 uwcheck.cmd --help
 ```
+
+`spot` refuses a square that is solid rock or outside 1 to 62 (the game kills a player put in rock). It does not
+keep the player alive and does not read whether he lived: look at `last-screen.png` (a skull is a death).
+A run with problems quotes the port's last lines in its report.
 
 Options: `--port EXE` (default `O:\uw\uo-new\dist\UW1\uw-new.exe`), `--ref EXE` or `--compare EXE` (default
 `O:\uw\uo-new\underworld-exhumed\uw1\build\port\uw1port.exe`), `--game DIR` (default `O:\uw\uo-new\dist\UW1\game`),
@@ -117,10 +125,19 @@ same way: `dotnet.exe UwEditorAvalonia.dll`.
   game saved slot I, and every saved level passed the object-list checks. Neither port crashed on level 9 (the
   editor's assumption that Exhumed crashes there is out of date). Both read through the same null pointers in
   `critter\AI.C` lines 1364-1370 on level 9: the original game's own reads, the same in both.
-- `check --compare` (2 + 2 runs): level 8, level 9 and `PLAYER.DAT` the same; no tile, static-object or
-  free-list difference anywhere. Levels 1-7 have 3-20 bytes, almost all the lowest heading bit of a creature
-  (byte +2, bit 7) or a creature's position within its tile (byte +3). With 130-240 noisy bytes a level that
-  is about what chance agreement on one-bit fields gives, so no rules difference is shown. An earlier compare
-  with only the reference run twice showed many more (and a flag bit at byte +10), which went away once ours
-  was run twice too: that was noise.
+- `check --compare` (2 + 2 runs, done twice): `PLAYER.DAT` the same; no static-object or free-list difference;
+  level 9 is not in the save, so not compared. What is listed changes from one compare to the next, which is
+  itself the sign of noise:
+  - the lowest heading bit of a creature (byte +2, bit 7) and its position within the tile (byte +3), a few
+    to 20 bytes a level, on different creatures each time;
+  - a tile's bytes 2-3 here and there (which object is first on that tile, so it follows the creatures);
+  - **byte +10, bit 3 of the creatures, a whole level at a time** (59 bytes on level 1 and 80 on level 7 in one
+    compare, none in the one before). Counted over the four saves, most creatures of a level carry this bit
+    together and it flips between two runs of the same exe, on both sides (level 2: ours 8 and 33 of 75
+    creatures, the reference 60 and 7). It is listed only when each side's two runs happen to fall the same
+    way, so it is timing noise too, but two runs a side do not filter out a level-wide bit reliably.
+
+  So no rules difference is shown, and `--compare` normally ends with exit code 1 because of this noise: read
+  `compare.txt`, do not rely on the exit code. A difference worth chasing is one that comes back in every
+  compare on the same object and byte.
 - `spot 3 32 11`: passed, screenshot taken.

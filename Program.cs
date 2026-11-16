@@ -43,8 +43,8 @@ static class UwCheck
         if (a.Length == 0 || a[0] == "--help" || a[0] == "-h") { Usage(); return 2; }
         string cmd = a[0];
         var levels = Enumerable.Range(1, 9).ToList();
-        // the editor puts level 9 last, after the save (no save is taken in the Ethereal Void); a crash there is still
-        // counted against our port (Recount)
+        // the editor puts level 9 last, after the save (in our runs neither port wrote a save once the player was
+        // on level 9); a crash there is still counted against our port (Recount)
         var opt = new ExhumedOptions { PortCrashesOnLevel9 = true };
         bool compare = false, shown = false;
         int secs = 8;
@@ -167,10 +167,17 @@ static class UwCheck
     }
 
     // The editor excuses a crash on arriving at UW1 level 9 (Exhumed used to crash there): ours must not, so it
-    // counts. Repeated notes (the same null read each frame) are said once, with a count.
+    // counts. Repeated notes (the same null read each frame) are said once, with a count. A run with problems
+    // also quotes the port's last lines.
     static ExhumedResult Recount(ExhumedResult r)
     {
         if (r.PortCrashedOn > 0) r.Problems.Add("the port crashed on arriving at level " + r.PortCrashedOn + " (exit " + r.ExitCode + ")");
+        if (r.Problems.Count > 0)
+        {
+            // what the port last said, so the report gives the reason and not only the exit code
+            var last = r.Output.Split((char)10).Select(l => l.Trim()).Where(l => l.Length > 0).TakeLast(5).ToList();
+            if (last.Count > 0) r.Notes.Insert(0, "The port's last lines: " + string.Join(" | ", last));
+        }
         var notes = r.Notes.GroupBy(n => n).Select(g => g.Count() > 1 ? g.Key + " (" + g.Count() + " times)" : g.Key).ToList();
         r.Notes.Clear();
         r.Notes.AddRange(notes);
@@ -183,11 +190,12 @@ static class UwCheck
         if (!compare) return ours.Passed ? 0 : 1;
         if (!File.Exists(RefPort)) throw new FileNotFoundException("no reference port at " + RefPort);
         var ours2 = CheckOne(s, levels, opt, "ours-b", Port, shown, out var pOurs2);
-        CheckOne(s, levels, opt, "reference-a", RefPort, shown, out var pA);
-        CheckOne(s, levels, opt, "reference-b", RefPort, shown, out var pB);
+        var refA = CheckOne(s, levels, opt, "reference-a", RefPort, shown, out var pA);
+        var refB = CheckOne(s, levels, opt, "reference-b", RefPort, shown, out var pB);
         int diffs = CompareSaves(s, new[] { pOurs, pOurs2 }, new[] { pA, pB }, levels);
-        if (!ours2.Passed) return 1;
-        return ours.Passed && diffs == 0 ? 0 : 1;
+        // a reference run with problems makes the comparison worthless, so it fails the whole check too
+        if (!refA.Passed || !refB.Passed) Console.WriteLine("A reference run had problems: the comparison above cannot be relied on.");
+        return ours.Passed && ours2.Passed && refA.Passed && refB.Passed && diffs == 0 ? 0 : 1;
     }
 
     // Slot I as each game saved it after the same script. The script runs on the real clock, so even the reference
@@ -208,8 +216,10 @@ static class UwCheck
         else
         {
             var arks = paths.Select(f => Archive.Open(File.ReadAllBytes(f), s.Kind)).ToArray();
+            int afterSave = ExhumedCheck.PortCrashLevel(s.Kind, ours[0].Options);   // visited after the save: not in it
             foreach (int lv in levels)
             {
+                if (lv == afterSave) { sb.AppendLine("  level " + lv + ": not compared (visited after the save, so the save holds it as it started)"); continue; }
                 int blk = s.Profile.LevelBlock(lv);
                 if (!arks.All(k => k.Has(blk))) { if (arks.Any(k => k.Has(blk))) { sb.AppendLine("  level " + lv + ": not in every save"); diffs++; } continue; }
                 byte[] o = arks[0].Read(blk), o2 = arks[1].Read(blk), a = arks[2].Read(blk), b = arks[3].Read(blk);
@@ -248,6 +258,11 @@ static class UwCheck
     // The player put on one square (the cheat, as a teleport trap does) and a screenshot after secs seconds.
     static int Spot(GameSession s, int level, int x, int y, int secs, bool shown)
     {
+        // the game kills a player put inside rock (and the run would still "pass"), and the port stops on a square
+        // outside 1 to 62: both are refused here. Whether the player lives is not read from the game: look at the
+        // screenshot (a skull is a death).
+        if (level < 1 || level > 9 || x < 1 || y < 1 || x > 62 || y > 62) throw new ArgumentException("spot: a level 1 to 9 and a square 1 to 62, 1 to 62");
+        if (s.LoadLevel(level).Tiles[x, y].IsSolid) throw new ArgumentException(string.Format("spot: ({0}, {1}) of level {2} is solid rock; the game kills a player put there", x, y, level));
         string folder = Path.Combine(Work, "runs", string.Format("spot-{0}-{1}-{2}", level, x, y));
         var opt = new ExhumedOptions { PortCrashesOnLevel9 = false };
         var plan = Plan(s, new[] { level }, opt, folder, shown);
