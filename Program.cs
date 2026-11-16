@@ -4,7 +4,7 @@
 // saved game, an input script that sends the player to each level with the port's test cheat `goto` (the game's
 // own code loads each), keeps the player alive with `set`, and saves in slot I; then it reads the port's output
 // (crashes, halts, the game's fatal error, refused cheats) and runs its object-list checks on the levels the game
-// wrote back. Our uw-new.exe keeps Exhumed's main.c and cheats.c, so the same plan runs on it. Differences from the
+// wrote back. Our uwr.exe keeps Exhumed's main.c and cheats.c, so the same plan runs on it. Differences from the
 // editor: the save is loaded by --autoload (our menus may be ours), and level 9 is not excused (the editor assumes
 // Exhumed crashes there).
 //
@@ -27,7 +27,7 @@ static class UwCheck
 {
     const string Root = @"O:\uw\uo-new";
     static string Game = Root + @"\dist\UW1\game";
-    static string Port = Root + @"\dist\UW1\uw-new.exe";
+    static string Port = Root + @"\dist\UW1\uwr.exe";
     static string RefPort = Root + @"\underworld-exhumed\uw1\build\port\uw1port.exe";
     static string Work = Root + @"\work\uwcheck";
 

@@ -1,6 +1,6 @@
 # uwcheck
 
-A headless test tool for **uw-new**, our Ultima Underworld port (`O:\uw\uo-new`, repo `uwr`). It runs the game
+A headless test tool for **uwr**, our Ultima Underworld port (the exe was `uw-new.exe` until 2026-11-16) (`O:\uw\uo-new`, repo `uwr`). It runs the game
 hidden, drives it with a script, and reports whether the game crashed, halted, hit its own fatal error, refused a
 test cheat, or saved levels whose object lists are broken. It can also play the same script on Underworld
 Exhumed's port (the reference) and list what differs between the two saves.
@@ -13,7 +13,7 @@ file or executable is in this repository**; it builds against a local clone of t
 
 ## Why this works on our port
 
-Our `uw-new.exe` is built on Underworld Exhumed's port code and keeps its `main.c` and `cheats.c`, so it accepts
+Our `uwr.exe` is built on Underworld Exhumed's port code and keeps its `main.c` and `cheats.c`, so it accepts
 the same switches as Exhumed's `uw1port.exe`:
 
 | Switch | What it does |
@@ -94,7 +94,7 @@ uwcheck.cmd --help
 keep the player alive and does not read whether he lived: look at `last-screen.png` (a skull is a death).
 A run with problems quotes the port's last lines in its report.
 
-Options: `--port EXE` (default `O:\uw\uo-new\dist\UW1\uw-new.exe`), `--ref EXE` or `--compare EXE` (default
+Options: `--port EXE` (default `O:\uw\uo-new\dist\UW1\uwr.exe`), `--ref EXE` or `--compare EXE` (default
 `O:\uw\uo-new\underworld-exhumed\uw1\build\port\uw1port.exe`), `--game DIR` (default `O:\uw\uo-new\dist\UW1\game`),
 `--work DIR` (default `O:\uw\uo-new\work\uwcheck`), `--shown` (show the game window).
 
@@ -119,7 +119,7 @@ same way: `dotnet.exe UwEditorAvalonia.dll`.
 
 ## Results so far
 
-2026-11-15/16, `dist\UW1\uw-new.exe` against Exhumed's `uw1port.exe` built from the same tree:
+2026-11-15/16, `dist\UW1\uwr.exe` against Exhumed's `uw1port.exe` built from the same tree:
 
 - `check`: **passed** on levels 1-9, for ours and for the reference, in every run. Every level was loaded, the
   game saved slot I, and every saved level passed the object-list checks. Neither port crashed on level 9 (the
