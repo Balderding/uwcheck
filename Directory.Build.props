@@ -1,0 +1,7 @@
+<Project>
+  <!-- build output stays in work\uwcheck (set before the SDK, so obj\ goes there too) -->
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)..\..\work\uwcheck\obj\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(MSBuildThisFileDirectory)..\..\work\uwcheck\bin\</BaseOutputPath>
+  </PropertyGroup>
+</Project>
