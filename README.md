@@ -141,3 +141,8 @@ same way: `dotnet.exe UwEditorAvalonia.dll`.
   `compare.txt`, do not rely on the exit code. A difference worth chasing is one that comes back in every
   compare on the same object and byte.
 - `spot 3 32 11`: passed, screenshot taken.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE). It covers the files in this repository only; the Underworld Editor has its own MIT
+licence, and the game is not ours and not here.
